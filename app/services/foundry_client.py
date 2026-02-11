@@ -1,34 +1,37 @@
-import httpx
+from azure.identity import DefaultAzureCredential
+from azure.ai.projects import AIProjectClient
 
 
 class FoundryClient:
-    def __init__(self, endpoint: str, api_key: str, deployment: str):
-        self.endpoint = endpoint.rstrip("/")
-        self.api_key = api_key
-        self.deployment = deployment
+    """
+    Wrap Azure AI Projects Agent reference call into a simple function.
+    """
 
-    async def chat_once(self, user_message: str) -> str:
-        url = (
-            f"{self.endpoint}/openai/deployments/"
-            f"{self.deployment}/chat/completions?api-version=2024-05-01-preview"
+    def __init__(self, endpoint: str, agent_name: str):
+        self.endpoint = endpoint
+        self.agent_name = agent_name
+
+        # DefaultAzureCredential:
+        # - Local dev: az login / VS Code Azure sign-in
+        # - Azure: Managed Identity / Workload Identity
+        self.credential = DefaultAzureCredential()
+
+        self.project_client = AIProjectClient(
+            endpoint=self.endpoint,
+            credential=self.credential,
         )
 
-        headers = {
-            "Content-Type": "application/json",
-            "api-key": self.api_key,
-        }
+        self.openai_client = self.project_client.get_openai_client()
 
-        body = {
-            "messages": [
-                {"role": "user", "content": user_message}
-            ],
-            "temperature": 0.7,
-        }
+        # resolve agent once at startup (fail fast if name wrong)
+        self.agent = self.project_client.agents.get(agent_name=self.agent_name)
 
-        async with httpx.AsyncClient(timeout=60) as client:
-            response = await client.post(url, headers=headers, json=body)
-
-        response.raise_for_status()
-        data = response.json()
-
-        return data["choices"][0]["message"]["content"]
+    def chat_once(self, user_message: str) -> str:
+        """
+        Send one user message to the Foundry agent and return output text.
+        """
+        response = self.openai_client.responses.create(
+            input=[{"role": "user", "content": user_message}],
+            extra_body={"agent": {"name": self.agent.name, "type": "agent_reference"}},
+        )
+        return response.output_text

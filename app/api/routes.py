@@ -6,7 +6,7 @@ from app.services.foundry_client import FoundryClient
 
 router = APIRouter()
 
-
+# client initialize
 _foundry_client: FoundryClient | None = None
 
 
