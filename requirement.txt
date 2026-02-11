@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+pydantic-settings
+python-dotenv
+
+# Azure Foundry / AI Projects
+--pre
+azure-ai-projects>=2.0.0b1
+azure-identity
