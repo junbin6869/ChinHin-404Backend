@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-
 from app.core.config import settings
 from app.api.routes import router, init_foundry_client
 from app.services.foundry_client import FoundryClient
@@ -8,10 +7,10 @@ app = FastAPI(title="Chinhin FastAPI Backend")
 
 @app.on_event("startup")
 def on_startup():
-    # initialize once
     client = FoundryClient(
-        endpoint=settings.foundry_project_endpoint,
-        agent_name=settings.foundry_agent_name,
+        endpoint=settings.azure_openai_endpoint,
+        api_key=settings.azure_openai_api_key,
+        deployment=settings.azure_openai_deployment,
     )
     init_foundry_client(client)
 
