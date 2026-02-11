@@ -5,6 +5,3 @@ python-dotenv
 gunicorn
 httpx
 
---pre
-azure-ai-projects>=2.0.0b1
-azure-identity
