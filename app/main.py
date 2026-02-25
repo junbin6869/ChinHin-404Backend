@@ -20,7 +20,7 @@ app.include_router(router, prefix="/api")
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "okkkkk"}
 
 app.add_middleware(
     CORSMiddleware,
