@@ -7,6 +7,20 @@ from app.services.foundry_client import FoundryClient
 
 app = FastAPI(title="Chinhin FastAPI Backend")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",   
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",   
+        "http://127.0.0.1:3000",
+        "https://jolly-sky-0f21f0c10.2.azurestaticapps.net",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],        
+    allow_headers=["*"],          
+)
+
 @app.on_event("startup")
 def on_startup():
     # initialize once
@@ -22,15 +36,3 @@ app.include_router(router, prefix="/api")
 async def health():
     return {"status": "okkkkk"}
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",   
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",   
-        "http://127.0.0.1:3000",
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],        
-    allow_headers=["*"],          
-)
