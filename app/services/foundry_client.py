@@ -1,37 +1,43 @@
+from __future__ import annotations
+
 from azure.identity import DefaultAzureCredential
 from azure.ai.projects import AIProjectClient
 
 
 class FoundryClient:
     """
-    Wrap Azure AI Projects Agent reference call into a simple function.
+    Multi-agent wrapper:
+      agent_map: { "routing": "...", "promotion": "...", "procurement": "...", "document": "..." }
     """
 
-    def __init__(self, endpoint: str, agent_name: str):
+    def __init__(self, endpoint: str, agent_map: dict[str, str]):
         self.endpoint = endpoint
-        self.agent_name = agent_name
+        self.agent_map = agent_map
 
-        # DefaultAzureCredential:
-        # - Local dev: az login / VS Code Azure sign-in
-        # - Azure: Managed Identity / Workload Identity
         self.credential = DefaultAzureCredential()
-
         self.project_client = AIProjectClient(
             endpoint=self.endpoint,
             credential=self.credential,
         )
-
         self.openai_client = self.project_client.get_openai_client()
 
-        # resolve agent once at startup (fail fast if name wrong)
-        self.agent = self.project_client.agents.get(agent_name=self.agent_name)
+        # Resolve all agents once at startup
+        self._agents: dict[str, object] = {}
+        for key, agent_name in self.agent_map.items():
+            self._agents[key] = self.project_client.agents.get(agent_name=agent_name)
 
-    def chat_once(self, user_message: str) -> str:
-        """
-        Send one user message to the Foundry agent and return output text.
-        """
+    def chat_once(self, agent_key: str, user_message: str) -> str:
+        if agent_key not in self._agents:
+            raise ValueError(f"Unknown agent_key='{agent_key}'. Available: {list(self._agents.keys())}")
+
+        agent_obj = self._agents[agent_key]
+
         response = self.openai_client.responses.create(
             input=[{"role": "user", "content": user_message}],
-            extra_body={"agent": {"name": self.agent.name, "type": "agent_reference"}},
-        )
+            extra_body={
+                "agent_reference": {
+                    "type": "agent_reference",
+                    "name": agent_obj.name,
+                },
+        })
         return response.output_text
