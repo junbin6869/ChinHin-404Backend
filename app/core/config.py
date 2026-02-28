@@ -10,9 +10,9 @@ class Settings(BaseSettings):
     # Multi-agent names
     foundry_routing_agent_name: str = "routing-agent"
     foundry_general_agent_name: str = "general-agent"
-    foundry_promotion_agent_name: str = "promotion-agent"
-    foundry_procurement_agent_name: str = "procurement-agent"
-    foundry_document_agent_name: str = "document-agent"
+    foundry_promotion_agent_name: str = "promotion-agent-testing"
+    foundry_procurement_agent_name: str = "procurement-agent-testing"
+    foundry_document_agent_name: str = "document-agent-testing"
 
 
 settings = Settings()
