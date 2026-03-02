@@ -1,111 +1,128 @@
+# app/services/orchestrator.py
 from __future__ import annotations
+from decimal import Decimal
+from datetime import date, datetime
 
+import json
 from dataclasses import dataclass
-from typing import Literal, Optional
-import threading
+from typing import Any, Dict, Literal, Optional
 
-AgentKey = Literal["routing", "promotion", "procurement", "document", "general"]
+from app.services.db import Database
+
+
+AgentKey = Literal["routing", "data_fetch", "promotion", "procurement", "document", "general"]
 
 
 @dataclass
-class PendingState:
+class OrchestratorResult:
     agent: AgentKey
-    original_request: str
-    clarify_question: str
+    reply: str
+    debug: Optional[Dict[str, Any]] = None
 
 
 class Orchestrator:
-    def __init__(self, foundry):
-        self.foundry = foundry
-        self._lock = threading.Lock()
-        self._pending: dict[str, PendingState] = {}
+    """
+    Orchestration flow:
 
-    def _is_clarify(self, text: str) -> bool:
-        return text.strip().lower().startswith("clarify:")
+    routing -> data_fetch -> database -> business_agent
+    """
 
-    def _strip_clarify(self, text: str) -> str:
-        # Return only the part after "CLARIFY:"
-        t = text.strip()
-        idx = t.lower().find("clarify:")
-        if idx == -1:
-            return t
-        return t[idx + len("clarify:"):].strip()
+    def __init__(self, foundry_client: Any, db: Database):
+        self.foundry = foundry_client
+        self.db = db
+        #service which need data
+        self.data_required_intents = {"promotion", "procurement"}
 
-    def _normalize_route_output(self, raw: str) -> Optional[AgentKey]:
-        if not raw:
-            return None
-        x = raw.strip().lower().replace('"', "").replace("'", "").strip()
-        x = x.split()[0] if x else ""
-        if x in ("promotion", "procurement", "document","geneeral"):
-            return x  # type: ignore[return-value]
-        return None
+    def _json_default(self, o):
+        if isinstance(o, Decimal):
+            return float(o)
+        if isinstance(o, (datetime, date)):
+            return o.isoformat()
+        return str(o)
 
-    def route(self, user_message: str) -> AgentKey:
-        """
-        No local prompt. Use cloud routing agent prompt.
-        Expect routing agent to return: promotion|procurement|document
-        """
-        raw = self.foundry.chat_once("routing", user_message)
-        agent = self._normalize_route_output(raw)
-        if agent:
-            return agent
-
-        # Fallback: if routing output unexpected
+    def _parse_intent(self, raw: str) -> AgentKey:
+        x = (raw or "").strip().lower()
+        if x in self.data_required_intents or x in {"document", "general"}:
+            return x  # type: ignore
         return "general"
 
-    #step 3: check whether is new / pending msg
-    def handle(self, conversation_id: str, user_message: str) -> str:
+    def _safe_json_loads(self, raw: str) -> Dict[str, Any]:
         """
-        Main entry:
-        - If pending: send user answer back to the pending agent with context
-        - Else: route -> call chosen agent
-        - If agent responds with CLARIFY: ... -> store pending and return only question part
-        - Else: clear pending and return final answer
+        Safely parse JSON from data_fetch agent.
+        Strips markdown fences if present.
         """
+        t = raw.strip()
 
-        # 1) If pending, continue with same agent
-        with self._lock:
-            pending = self._pending.get(conversation_id)
+        if t.startswith("```"):
+            t = t[t.find("{") : t.rfind("}") + 1]
 
-        if pending:
-            # Provide minimal context so agent can continue correctly (because calls are stateless)
-            stitched = (
-                f"Original user request:\n{pending.original_request}\n\n"
-                f"You asked the user:\n{pending.clarify_question}\n\n"
-                f"User answer:\n{user_message}\n\n"
-                "Continue and provide the final answer."
+        return json.loads(t)
+
+    def handle(self, user_message: str, conversation_id: Optional[str] = None) -> OrchestratorResult:
+
+        # Step 1: Call routing agent
+        routing_raw = self.foundry.call_agent(
+            agent_key="routing",
+            messages=[{"role": "user", "content": user_message}],
+            conversation_id=conversation_id,
+        )
+
+        intent = self._parse_intent(routing_raw)
+
+        debug: Dict[str, Any] = {"routing_raw": routing_raw, "intent": intent}
+
+        rows = None
+        fetch_reason = None
+
+        # Step 2: If intent requires data, call data_fetch agent
+        if intent in self.data_required_intents:
+
+            fetch_raw = self.foundry.call_agent(
+                agent_key="data_fetch",
+                messages=[
+                    {"role": "user", "content": user_message},
+                    {"role": "system", "content": f"INTENT: {intent}"}
+                ],
+                conversation_id=conversation_id,
             )
-            out = self.foundry.chat_once(pending.agent, stitched)
 
-            if self._is_clarify(out):
-                # Still missing info: update clarify question (keep pending)
-                q = self._strip_clarify(out)
-                with self._lock:
-                    self._pending[conversation_id] = PendingState(
-                        agent=pending.agent,
-                        original_request=pending.original_request,
-                        clarify_question=q,
-                    )
-                return q
+            debug["fetch_raw"] = fetch_raw
 
-            # Completed: clear pending
-            with self._lock:
-                self._pending.pop(conversation_id, None)
-            return out
+            fetch_json = self._safe_json_loads(fetch_raw)
 
-        # 2) Not pending: route and call agent
-        agent = self.route(user_message)
-        out = self.foundry.chat_once(agent, user_message)
+            sql = fetch_json.get("sql")
+            params = fetch_json.get("params", {})
+            fetch_reason = fetch_json.get("reason")
 
-        # 3) If clarify, store pending and return question only
-        if self._is_clarify(out):
-            q = self._strip_clarify(out)
-            with self._lock:
-                self._pending[conversation_id] = PendingState(
-                    agent=agent,
-                    original_request=user_message,
-                    clarify_question=q,
-                )
-            return q
+            debug["fetch_sql"] = sql
+            debug["fetch_params"] = params
+            debug["fetch_reason"] = fetch_reason
 
-        return out
+            # Execute SQL via db layer
+            rows = self.db.query(sql, params=params)
+
+            debug["rows_count"] = len(rows)
+
+        # Step 3: Send processed context to business agent
+        context_payload = {}
+
+        if rows is not None:
+            context_payload = {
+                "rows_preview": rows[:50],
+                "rows_count": len(rows),
+                "fetch_reason": fetch_reason,
+                "note": "Only first 50 rows provided."
+            }
+
+        business_messages = [
+            {"role": "user", "content": user_message},
+            {"role": "system", "content": json.dumps(context_payload, default=self._json_default)}
+        ]
+
+        business_raw = self.foundry.call_agent(
+            agent_key=intent,
+            messages=business_messages,
+            conversation_id=conversation_id,
+        )
+
+        return OrchestratorResult(agent=intent, reply=business_raw, debug=debug)
