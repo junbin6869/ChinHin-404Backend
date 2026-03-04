@@ -8,7 +8,7 @@ from typing import Literal
 
 from app.core.config import settings
 
-Role = Literal["promotion", "procurement", "document", "admin"]
+Role = Literal["promotion", "procurement", "admin"]
 
 def _b64url(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).decode("utf-8").rstrip("=")
@@ -34,7 +34,7 @@ def verify_token(token: str) -> Role:
             raise ValueError("bad signature")
 
         role_str, _iat = payload.decode("utf-8").split("|", 1)
-        if role_str not in ("promotion", "procurement", "document", "admin"):
+        if role_str not in ("promotion", "procurement", "admin"):
             raise ValueError("bad role")
 
         return role_str  # type: ignore[return-value]

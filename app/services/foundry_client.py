@@ -35,17 +35,14 @@ class FoundryClient:
             role = m.get("role", "user")
             content = m.get("content", "")
 
-            # 只处理最常见的 string content；如果不是 string，就转成 string
             if isinstance(content, list):
-                # 例如你未来可能传 [{"type":"input_text","text":"..."}]，那就拼起来
                 content = " ".join(
                     (c.get("text") if isinstance(c, dict) else str(c)) for c in content
                 )
             if content is None:
                 content = ""
             content = str(content)
-
-            # 避免空消息（空消息会导致 invalid_value）
+   
             if not content.strip():
                 continue
 

@@ -40,11 +40,18 @@ app.add_middleware(
 def on_startup():
     agent_map = {
         "routing": settings.foundry_routing_agent_name,
-        "promotion": settings.foundry_promotion_agent_name,
-        "procurement": settings.foundry_procurement_agent_name,
-        "document": settings.foundry_document_agent_name,
         "general": settings.foundry_general_agent_name,
-        "data_fetch":settings.foudry_data_fetch_agent_name, 
+        "data_fetch":settings.foudry_data_fetch_agent_name,
+        "promotion_analysis": settings.foundry_promotion_analysis_agent_name,
+        "promotion_monitor": settings.foundry_promotion_monitor_agent_name,
+        "promotion_recommendation": settings.foundry_promotion_recommendation_agent_name, 
+        "document_classification":settings.foundry_document_classification_agent_name,
+        "document_governance":settings.foundry_document_governance_agent_name,
+        "document_retrieval":settings.foundry_document_retrieval_agent_name,
+        "procurement_forecasting": settings.foundry_procurement_forecasting_agent_name,
+        "procurement_PRgeneration": settings.foundry_procurement_PRgeneration_agent_name,
+        "procurement_approval_insight": settings.foundry_procurement_approval_insight_agent_name,
+        "procurement_delivery_prediction": settings.foundry_procurement_delivery_prediction_agent_name,
     }
 
     foundry = FoundryClient(

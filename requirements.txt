@@ -2,6 +2,7 @@ fastapi
 uvicorn[standard]
 pydantic-settings
 python-dotenv
+requests
 
 # Azure Foundry / AI Projects
 --pre

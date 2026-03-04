@@ -13,14 +13,13 @@ from sqlalchemy.engine import Engine
 # Regex pattern to block dangerous SQL keywords
 DANGEROUS_SQL = re.compile(
     r"\b(insert|update|delete|drop|alter|truncate|merge|exec|execute|grant|revoke|create)\b",
-    re.IGNORECASE,
 )
 
 
 @dataclass
 class DBConfig:
     db_url: str
-    allowed_objects: Optional[Sequence[str]] = None
+    allowed_objects: None
     default_row_limit: int = 500
 
 
@@ -122,9 +121,17 @@ class Database:
         self.validate_select_only(sql)
 
         final_sql = self._enforce_limit(sql, row_limit or self.cfg.default_row_limit)
+        final_sql = final_sql.replace("@", ":")
 
         with self.engine.connect() as conn:
             result = conn.execute(text(final_sql), params or {})
             rows = result.fetchall()
             columns = list(result.keys())
             return [dict(zip(columns, row)) for row in rows]
+        
+db = Database(
+    DBConfig(
+        db_url="mssql+pyodbc://CloudSA19804fa6:iloveUTAR888@404notfound.database.windows.net/404notfound?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes&TrustServerCertificate=no",
+        allowed_objects=None
+    )
+)

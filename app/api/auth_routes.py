@@ -6,7 +6,7 @@ from app.core.auth import create_token
 
 router = APIRouter()
 
-Role = Literal["promotion", "procurement", "document", "admin"]
+Role = Literal["promotion", "procurement", "admin"]
 
 class LoginRequest(BaseModel):
     role: Role
