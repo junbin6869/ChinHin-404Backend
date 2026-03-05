@@ -3,6 +3,8 @@ uvicorn[standard]
 pydantic-settings
 python-dotenv
 requests
+sqlalchemy
+pyodbc
 
 # Azure Foundry / AI Projects
 --pre
