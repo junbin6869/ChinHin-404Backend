@@ -21,6 +21,7 @@ db = Database(
     )
 )
 
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
