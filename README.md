@@ -7,7 +7,7 @@ pip install requirements.txt
 After download, you may run it using (It will start the execution from main.py):
 uvicorn app.main:app --reload --port 8000 --log-level debug
 
----------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------
 
 backup yaml:
 name: Build and deploy Python app to Azure Web App - 404
