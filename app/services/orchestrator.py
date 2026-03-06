@@ -10,7 +10,7 @@ from typing import Any, Dict, Literal, Optional
 from app.services.db import Database
 
 
-AgentKey = Literal["routing", "data_fetch", "general", "promotion_analysis", "promotion_recommendation", "document_governance", "document_retrieval","procurement_forecasting","procurement_delivery_prediction"]
+AgentKey = Literal["routing", "data_fetch", "general", "promotion_analysis", "promotion_recommendation", "document_governance", "document_retrieval","procurement_forecasting","procurement_delivery_prediction", "procurement_approval_insight"]
 
 
 @dataclass
@@ -30,7 +30,7 @@ class Orchestrator:
         self.foundry = foundry_client
         self.db = db
         #service which need data
-        self.data_required_intents = {"promotion_analysis", "promotion_recommendation", "document_governance", "document_retrieval","procurement_forecasting","procurement_delivery_prediction"}
+        self.data_required_intents = {"promotion_analysis", "promotion_recommendation", "document_governance", "document_retrieval","procurement_forecasting","procurement_delivery_prediction", "procurement_approval_insight"}
 
     def _json_default(self, o):
         if isinstance(o, Decimal):
