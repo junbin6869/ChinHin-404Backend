@@ -43,11 +43,16 @@ jobs:
     needs: build
 
     steps:
-      - name: Download artifact
+      - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
           name: python-app
           path: deploy
+
+      - name: Show files (debug)
+        run: |
+          echo "Listing deploy folder:"
+          ls -R deploy
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
@@ -56,3 +61,4 @@ jobs:
           slot-name: 'Production'
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_BD038AFC9F124793B8CC2C2F26ED597C }}
           package: deploy
+          clean: true
