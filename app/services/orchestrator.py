@@ -10,7 +10,7 @@ from typing import Any, Dict, Literal, Optional
 from app.services.db import Database
 
 
-AgentKey = Literal["routing", "data_fetch", "general", "promotion_analysis", "promotion_recommendation", "document_governance", "document_retrieval","procurement_forecasting","procurement_delivery_prediction", "procurement_approval_insight"]
+AgentKey = Literal["routing", "data_fetch", "general", "promotion_analysis", "promotion_recommendation", "procurement_forecasting", "procurement_approval_insight"]
 
 
 @dataclass

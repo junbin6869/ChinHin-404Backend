@@ -200,16 +200,27 @@ def _po_optional_columns() -> Dict[str, bool]:
 
 
 def _get_latest_supplier_id(product_id: Any) -> Optional[Any]:
-    sql = """
-    SELECT TOP 1 po.supplier_id
-    FROM dbo.Purchase_Orders po
-    INNER JOIN dbo.PO_Items i ON i.po_id = po.po_id
-    WHERE i.product_id = :product_id AND po.supplier_id IS NOT NULL
-    ORDER BY po.order_date DESC
-    """
-    rows = state.orchestrator.db.query(sql, params={"product_id": product_id}, row_limit=1)
-    if rows:
-        return rows[0].get("supplier_id")
+    queries = [
+        """
+        SELECT TOP 1 po.supplier_id
+        FROM dbo.Purchase_Orders po
+        INNER JOIN dbo.PO_Items i ON i.po_id = po.po_id
+        WHERE i.product_id = :product_id AND po.supplier_id IS NOT NULL
+        ORDER BY po.order_date DESC, po.po_id DESC
+        """,
+        """
+        SELECT TOP 1 dr.supplier_id
+        FROM dbo.Delivery_Requests dr
+        INNER JOIN dbo.Delivery_Items di ON di.delivery_id = dr.delivery_id
+        WHERE di.product_id = :product_id AND dr.supplier_id IS NOT NULL
+        ORDER BY dr.request_date DESC, dr.delivery_id DESC
+        """,
+    ]
+
+    for sql in queries:
+        rows = state.orchestrator.db.query(sql, params={"product_id": product_id}, row_limit=1)
+        if rows and rows[0].get("supplier_id") is not None:
+            return rows[0].get("supplier_id")
     return None
 
 
@@ -652,7 +663,7 @@ def approve_po(po_id: str):
                 raise HTTPException(status_code=400, detail="This PR/PO has no PO_Items linked to it.")
 
             conn.execute(
-                text("UPDATE dbo.Purchase_Orders SET status = 'Pending' WHERE po_id = :po_id"),
+                text("UPDATE dbo.Purchase_Orders SET status = 'Approved' WHERE po_id = :po_id"),
                 {"po_id": po_id},
             )
 
@@ -710,7 +721,7 @@ def approve_po(po_id: str):
         return {
             "message": "Approved and converted to PO.",
             "po_id": po_id,
-            "new_status": "Pending",
+            "new_status": "Approved",
             "delivery_id": delivery_id,
         }
     except HTTPException:
