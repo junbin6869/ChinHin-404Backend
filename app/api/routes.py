@@ -598,14 +598,6 @@ def procurement_ai_insight_run(payload: dict = Body(default={})):
         current_pr_payload = state.orchestrator.db.query(current_pr_sql, params={}, row_limit=200)
         if current_pr_payload:
             approval_prompt = (
-                "You are an AI Procurement Approval Insight Agent.\n"
-                "Provide decision support for managers reviewing purchase requests.\n"
-                "Given the current PR list, identify which PRs should be approved first and why.\n"
-                "Focus on stock urgency, operational risk, and expected stock coverage after approval.\n"
-                "Write:\n"
-                "1) one short summary paragraph\n"
-                "2) 3-6 bullets naming the most important PRs to approve first\n"
-                "3) one short closing sentence on overall approval priority\n\n"
                 f"CURRENT_PR_LIST: {json.dumps(current_pr_payload, default=str)}"
             )
             approval_message = state.orchestrator.foundry.chat_once(
